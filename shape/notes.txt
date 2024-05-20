@@ -1,0 +1,25 @@
+
+
+Apophis Model 1.obj and .ply are from 
+https://3d-asteroids.space/asteroids/99942-Apophis  
+and they are supposed to be the same model by Pravec+14, 
+Units do not seem to be in km. 
+This model is convex.
+I remove spaces in name of file
+
+apophis_v233s7_vert2_new.mod.wf is an obj file which I received via email from Joe DeMartini
+I copied to .obj so that it is clear that it is obj
+and is apparently by Brozovic+18.
+Note this is not Brozovic+23 though according to Joe, Brozovic+23 and Lee+22
+said no changes from Pravic14, and he says Pravic thinks it is not entirely consistent with light curves.
+I could not find a paper called Brozovic+23
+This shape model contains concave regions!!!!!!!!!
+However, rand_bennu( routine should read in vertices and fill in shape model just fine anyways
+and that is because it accepts a particle if nearest surface particle has a larger radius. 
+So the lack of convexity should not be an issue for my routines.  
+This shape model appears to be in km (I am guessing!)
+and has 2000 vertices and about twice as many faces. 
+
+format of files, ascii, only vertices needed
+lines starting with v are vertices. 
+Other lines are ignored in my routines in src_spring. 
