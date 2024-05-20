@@ -31,7 +31,9 @@ choose
  output units km and s
  unclick options below except csv
 
-result is horizons_results_AGeo.csv +- 3 hours from pericenter
+result is 
+   horizons_results_AGeo.csv +- 3 hours from pericenter
+   horizons_results_AGeo6.csv +- 6 hours from pericenter
 
 data starts after line starting with this:
 $$SOE
@@ -43,3 +45,4 @@ The x and y axes define a reference plane from which declination or latitude is 
 The x-direction defines the origin from which right ascension or longitude is measured.
 
 It is not possible to have outputs at shorter than 1 minute!
+
