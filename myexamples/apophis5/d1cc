@@ -1,0 +1,30 @@
+8         dt           # timestep in seconds 
+3e8       tmax         # integrate to this time in seconds
+180       t_print      # output orbit info between timesteps in seconds
+ 900      t_datadump   # output particles and springs
+1         stype        # if 0 create particle shape, if 1 read in saved resolved body
+d1        saveroot     # root for saved particles and springs file used if stype=1
+1         sindex       # index for save particles and springs file used if stype=1
+4.0e10    mball        # in kg  (not used if stype=1)
+../shape/apophis_v233s7_vert2_new.obj  # shape model  not used if stype=1
+1e3       distcor      # what to multiply shape model to get it in m (used if stype=0)
+1.98e+07  shape_vol    # shape volume in m3 computed in python using face tetrahedrons (for stress)
+15.0      b_distance   # min interparticle distance in m (not used if stype=1)
+2.3       mush_fac     # sets max spring length (not used if stype=1)
+2.0e3     ks           # spring constant (not used if stype=1)
+1.0       gamma_fac    # how much higher is gamma initially? 
+1.0e-4    gamma_all    # spring damping final (used both stypes)
+0.0       t_damp       # time to switch damping (used both stypes)
+0.0       omegax       # initial body spin (not used if stype=1)
+0.0       omegay       # initial body spin
+0.0       omegaz       # initial body spin
+278.0     lambda_L_deg # ecliptic longitude in degrees of spin angular momentum, used all stype!
+-86.0     beta_L_deg   # ecliptic lattitude degrees
+1         seed         # if 1 then use time of day otherwise use to seed random number generator
+1         neph         # if 1 there s an ephemeris point mass 
+../orbit/horizons_results_AGeo6.csv    # ephemerus file for Earth
+5.9722E24   ME         # mass of Earth kg 
+6378.1370e3 RE         # equatorial radius of Earth in m (for display)
+2462240.281944444  jd0 # time is zero at this julian date in days
+60        dt_eph       # time between ephemerus points in s
+-1e3      scalefac     # to convert eph to meters and sign so that w.r.t to Earth
