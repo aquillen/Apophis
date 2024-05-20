@@ -1,0 +1,45 @@
+
+Using this site to get ephemerides
+https://ssd.jpl.nasa.gov/horizons/app.html#/
+
+6 hours prior            April 13, 2029 15:46 UT  2462240.15694
+3 hours prior            April 13, 2029 18:46 UT  2462240.28194
+time of closest approach April 13, 2029 21:46 UT  2462240.40694
+3 hours after            April 14, 2029 00:46 UT
+6 hours after            April 14, 2029 03:46 UT
+what is this in jd?
+Converting this table to jd with 
+https://onlineconversion.com/julian_date.htm
+
+
+1 choose vector table. 
+2 choose  99942 Apophis (2004 MN4) 2  (type in Apophis)
+3 coordinate center type in geocentric
+4 time specification  Start=2029-04-13 18:46 TDB , Stop=2029-04-14 00:46, Step=1 (minutes) 
+gives a six hour window
+5. output:
+choose 
+ statevector xyz,vxvyvz
+ no uncertainties
+ reference frame icrf
+ reference frame ecliptic xy inertial
+   if you choose geocentric equatorial then we would not be able to as easily specify angular momentum axis?
+   however if we choose ecliptic, we are going to have trouble specifying earths J2. 
+   choosing ecliptic!
+ vector correction none=geometric 
+ calendar type, I don't think it matters as we also have jd in the time?
+ output units km and s
+ unclick options below except csv
+
+result is horizons_results_AGeo.csv +- 3 hours from pericenter
+
+data starts after line starting with this:
+$$SOE
+and line following data has 
+$$EOE
+
+For ecliptic 
+The x and y axes define a reference plane from which declination or latitude is measured. 
+The x-direction defines the origin from which right ascension or longitude is measured.
+
+It is not possible to have outputs at shorter than 1 minute!
