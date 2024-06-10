@@ -77,7 +77,28 @@ def sort_eigs_3(w,v):
     eigmin = np.real(w[jmin])
     wsort = np.array([eigmin,eigmid,eigmax])  # eigenvalues order smallest to largest  
     vsort = np.array([vmin,vmid,vmax])  # eigenvectors in same order 
+    det_rot = np.linalg.det(vsort)
+    # print('det_rot ',det_rot) # half the time we had -1 value 
+    if (det_rot <0):
+        vsort = np.array([-vmin,vmid,vmax])  # flip one so det becomes positive?
+         
     return wsort, vsort 
+
+
+# read in ext body output file to return spring potential and rotational rotational energy
+# t x y z vx vy vz omx omy omz llx lly llz Ixx Iyy Izz Ixy Iyz Ixz KErot PEspr PEgrav Etot dEdtnow
+# 0 1 2 3 4  5  6  7  8     9  10  11  12  13   14  15 16   17 18  19    20
+# read ext
+def read_ext(mdir,froot):
+    #springs[i].i, springs[i].j,
+    # springs[i].ks, springs[i].rs0, springs[i].gamma, springs[i].k_heat
+    sfname = mdir + froot  + '_ext.txt'
+    print(sfname)
+    mtab = np.loadtxt(sfname)
+    KErot = np.array(mtab[:,19])
+    PEspr = np.array(mtab[:,20])
+    tarr = np.array(mtab[:,0])
+    return tarr,KErot,PEspr
 
 
 # store all simulation output info in a single class structure 
@@ -87,6 +108,7 @@ class sim_struct():
         self.mdir  = mdir  # directory 
         self.froot = froot  # fileroot!
         self.isE = 0  # is there an Earth?
+        self.print_stuff = 0  # print information or not 
         self.read_spr()  # read in springs
         self.read_part() # read in  particles
         self.shape_vol = shape_vol   # shape model volume in m^3
@@ -103,8 +125,10 @@ class sim_struct():
         xarr,yarr,zarr,vxarr,vyarr,vzarr,marr = read_particles(self.mdir,\
                                         self.froot,self.index)
         if (marr[-1] != marr[0]):
+            self.isE=1
             self.ME = marr[-1] # EARTH
             self.posE = np.array([xarr[-1],yarr[-1],zarr[-1]])
+            self.velE = np.array([vxarr[-1],vyarr[-1],vzarr[-1]])
             xarr = xarr[0:-1]
             yarr = yarr[0:-1]
             zarr = zarr[0:-1]
@@ -112,8 +136,8 @@ class sim_struct():
             vxarr = vxarr[0:-1]
             vyarr = vyarr[0:-1]
             vzarr = vzarr[0:-1]
-            print('Earth is present')
-            self.isE=1
+            if (self.print_stuff ==1):
+                print('Earth is present')
             
         self.pos = np.zeros((len(xarr),3))
         self.vel = np.zeros((len(xarr),3))
@@ -141,7 +165,8 @@ class sim_struct():
                     sigma[pj,i,j] += Force[i]*Lvec[j]
         nodevol = self.shape_vol/n_p  #  not 100% sure about normalization!
         self.sigma = sigma/nodevol # now has correct units 
-        print('stress tensors computed')
+        if (self.print_stuff ==1):
+            print('stress tensors computed')
         self.get_stress_eigs(); # compute the eigenvalues of the stress tensor
   
     # compute force and length vector for 1 spring k (used in computation of stress tensor)
@@ -186,7 +211,8 @@ class sim_struct():
         if (self.isE ==1): # also rotate the Earth's position!
             rotated_posE= q.apply(self.posE)
             self.posE = rotated_posE
-        print('positions rotated')
+        if (self.print_stuff ==1):
+            print('positions rotated')
         
     # get the eigenvalues of the stress tensor and their eigenvectors 
     def get_stress_eigs(self):
@@ -202,7 +228,8 @@ class sim_struct():
         self.s_eigenvecs = eigenvecs
         self.s_eigenvals = eigenvals
         self.compute_J2()  # compute J2= invariant of deviatoric stress
-        print('eigenvectors and eigenvalues of stress tensor computed')
+        if (self.print_stuff ==1):
+            print('eigenvectors and eigenvalues of stress tensor computed')
         
     # compute sqrt J2 = invariant of deviatoric stress
     def compute_J2(self):   # after computing eigenvalues of stress tensor 
@@ -233,7 +260,9 @@ class sim_struct():
     def rotate_to_principal(self):  # rotate to principal axis coordinate system
         #  compute_mom_inertia 
         self.compute_mom_inertia()  # compute moment of inertia along with its eigenvectors
+        #### xxxx there might be a mistake here! if I am not rotating to principal axes
         q =  R.from_matrix(self.I_eigenvecs) # create rotation from eigenvectors
+        # does this rotation have det 1 necessarily,  maybe not.  Perhaps that's the problem
         # q is a rotation class thing in python
         rotated_pos = q.apply(self.pos) # do rotation!
         xpmax = np.max( rotated_pos[:,0])
@@ -250,7 +279,8 @@ class sim_struct():
         if (self.isE ==1): # also rotate the Earth's position!
             rotated_posE= q.apply(self.posE)
             self.posE = rotated_posE
-        print('rotated to principal axis frame')
+        if (self.print_stuff ==1):
+            print('rotated to principal axis frame')
         self.compute_mom_inertia() #  recompute moments of inertia tensor
         
     def compute_L(self):   # compute angular momentum and spin vector 
@@ -283,6 +313,7 @@ class sim_struct():
 # globals for figures 
 fig_lim = 213; # limit of x,y,z ranges to show in figures 
 min_circle_ratio=0.04 # helps with concavity in triangulation 
+Evec_mag = 150.0;  # size of vector pointing to Earth
 
 # plot components of stress tensor
 # arguments:
@@ -290,17 +321,19 @@ min_circle_ratio=0.04 # helps with concavity in triangulation
 #  sim1 is used to make a difference  if subit==1, else ignored
 #  vmin,vmax ranges for xx yy zz components
 #  vmin2,vmax2, ranges for xy, yz, xz components
+#  zstep1,zstep2, steps for colorbars
 #  ofile output file name for png image
 #  tlabel  a time label in hours from peri 
-def plt_sig6(sim,sim1,subit,vmin,vmax,vmin2,vmax2,tlabel,ofile):
+def plt_sig6(sim,sim1,subit,vmin,vmax,zstep1,vmin2,vmax2,zstep2,tlabel,ofile):
     fig, axarr = plt.subplots(6,3,figsize=(4.3,7),sharex=True,sharey=True,dpi=100)
     plt.subplots_adjust(wspace=0,hspace=0)
     
     width = 20.   #could be adjusted choose a width of plane to contain points 
     #min_circle_ratio=0.03 # helps with tricontour concavity 
     
-    dE = np.sqrt(np.sum(sim.posE*sim.posE))
-    Evec = sim.posE/dE * 100.0 # to display Earth direction 
+    if (sim.isE ==1):
+        dE = np.sqrt(np.sum(sim.posE*sim.posE))
+        Evec = sim.posE/dE * Evec_mag # to display Earth direction 
     
     pos = sim.pos
     if (subit==1):
@@ -337,11 +370,11 @@ def plt_sig6(sim,sim1,subit,vmin,vmax,vmin2,vmax2,tlabel,ofile):
          
         cmap_e =  mpl.cm.bwr; cmap_e.set_under('blue'); cmap_e.set_over('red')
         if (k <3):
-            levs = np.linspace(int(vmin),int(vmax), 41)
+            levs = np.arange(vmin,vmax,zstep1)
             if (subit==0):
                 cmap_e =  mpl.cm.pink; cmap_e.set_under('black'); cmap_e.set_over('white')
         else:
-            levs = np.linspace(int(vmin2),int(vmax2), 41)
+            levs = np.arange(vmin2,vmax2,zstep2)
             #cmap_e =  mpl.cm.bwr; cmap_e.set_under('blue'); cmap_e.set_over('red')
             
         xl=-156;yl=172
@@ -376,10 +409,11 @@ def plt_sig6(sim,sim1,subit,vmin,vmax,vmin2,vmax2,tlabel,ofile):
         if (k==3):   
             cbar = plt.colorbar(im,ax=axarr[3:6,:],shrink=0.9,aspect=30,label='Stress (Pa)')
     
-    for k in range(6): # show a segment pointing toward Earth
-        axarr[k,0].plot([0,Evec[0]],[0,Evec[2]],'c-',lw=1)  # point toward the Earth!
-        axarr[k,1].plot([0,Evec[1]],[0,Evec[2]],'c-',lw=1)
-        axarr[k,2].plot([0,Evec[1]],[0,Evec[0]],'c-',lw=1)
+    if (sim.isE ==1):
+        for k in range(6): # show a segment pointing toward Earth
+            axarr[k,0].plot([0,Evec[0]],[0,Evec[2]],'c-',lw=1)  # point toward the Earth!
+            axarr[k,1].plot([0,Evec[1]],[0,Evec[2]],'c-',lw=1)
+            axarr[k,2].plot([0,Evec[1]],[0,Evec[0]],'c-',lw=1)
     
     axarr[5,0].set_ylabel('z')
     axarr[5,0].set_xlabel('x')
@@ -401,7 +435,7 @@ def plt_sig6(sim,sim1,subit,vmin,vmax,vmin2,vmax2,tlabel,ofile):
         plt.savefig(ofile,dpi=200)
 
 # plot deviatoric stress 
-def plt_J2(sim,sim1,subit,vmin,vmax,tlabel,ofile):
+def plt_J2(sim,sim1,subit,vmin,vmax,zstep,tlabel,ofile):
     fig, axarr = plt.subplots(1,3,figsize=(6,2),sharex=True,sharey=True)
     plt.subplots_adjust(wspace=0,hspace=0,left=0.04,right=0.96,top=0.99,bottom=0.04)
     pos= sim.pos 
@@ -431,13 +465,11 @@ def plt_J2(sim,sim1,subit,vmin,vmax,tlabel,ofile):
     axarr[1].set_aspect('equal')
     axarr[2].set_aspect('equal')
     
-    #nl = int(vmax*4)- int(vmin*4) + 1
+    levs  = np.arange(vmin,vmax,zstep)
     
-    dl = (int(vmax*4)/4 - int(vmin*4)/4)/50
-    levs  = np.arange(int(vmin*4)/4,int(vmax*4)/4+dl,dl)
-    
-    dE = np.sqrt(np.sum(sim.posE*sim.posE)) # Earth!
-    Evec = sim.posE/dE * 100.0 
+    if (sim.isE ==1):
+        dE = np.sqrt(np.sum(sim.posE*sim.posE)) # Earth!
+        Evec = sim.posE/dE * Evec_mag;
     
     ypos = np.squeeze(pos[:,1])
     ii = (np.abs(ypos)<width)
@@ -446,7 +478,6 @@ def plt_J2(sim,sim1,subit,vmin,vmax,tlabel,ofile):
     mask = tri.TriAnalyzer(triang).get_flat_tri_mask(min_circle_ratio)
     triang.set_mask(mask)
     axarr[0].tricontourf(triang,sJ2[ii],levels=levs,cmap=cmap_b,extend='both')
-    axarr[0].plot([0,Evec[0]],[0,Evec[2]],'c-',lw=1) # Earth
     
     xpos = np.squeeze(pos[:,0])
     ii = (np.abs(xpos)<width)
@@ -455,7 +486,6 @@ def plt_J2(sim,sim1,subit,vmin,vmax,tlabel,ofile):
     mask = tri.TriAnalyzer(triang).get_flat_tri_mask(min_circle_ratio)
     triang.set_mask(mask)
     axarr[1].tricontourf(triang,sJ2[ii],levels=levs,cmap=cmap_b,extend='both')
-    axarr[1].plot([0,Evec[1]],[0,Evec[2]],'c-',lw=1)
     
     zpos = np.squeeze(pos[:,2])
     ii = (np.abs(zpos)<width)
@@ -464,7 +494,11 @@ def plt_J2(sim,sim1,subit,vmin,vmax,tlabel,ofile):
     mask = tri.TriAnalyzer(triang).get_flat_tri_mask(min_circle_ratio)
     triang.set_mask(mask)
     im= axarr[2].tricontourf(triang,sJ2[ii],levels=levs,cmap=cmap_b,extend='both')
-    axarr[2].plot([0,Evec[1]],[0,Evec[0]],'c-',lw=1)
+
+    if (sim.isE ==1):
+        axarr[0].plot([0,Evec[0]],[0,Evec[2]],'c-',lw=1) # Earth
+        axarr[1].plot([0,Evec[1]],[0,Evec[2]],'c-',lw=1)
+        axarr[2].plot([0,Evec[1]],[0,Evec[0]],'c-',lw=1)
 
     cstring = r'$\sqrt{J_2}$(Pa)'
     if (subit==1):
@@ -486,4 +520,80 @@ def plt_J2(sim,sim1,subit,vmin,vmax,tlabel,ofile):
     
     if (len(ofile)>3):
         plt.savefig(ofile,dpi=300)
+
+
+# plot deformation with a quiver plot!
+# arguments:
+#    Qscale: you can adjust to get arrow the right size
+#    Qkey_len:  for quiverkey
+#    sim, sim1: simulations. Show positions computed from sim-sim1 
+#    tlabel is a time lable
+#    ofile, string for png if you want a figure output
+def plt_def3(sim,sim1,Qscale,Qkey_len,tlabel,ofile):
+    
+    fig, axarr = plt.subplots(1,3,figsize=(6.0,2.5),sharex=True,sharey=True,dpi=200)
+    plt.subplots_adjust(wspace=0,hspace=0,left=0.04,right=0.96,top=0.97,bottom=0.08)
+
+    for i in range(3):
+        axarr[i].set_aspect('equal')
+    #fig_lim = 212;
+    axarr[0].set_xlim([-fig_lim,fig_lim])
+    axarr[0].set_ylim([-fig_lim,fig_lim])
+    axarr[0].set_xticks([])
+    axarr[0].set_yticks([])
+
+    width = 20.   #could be adjusted choose a width of plane to contain points
+    #min_circle_ratio=0.04 # helps with tricontour concavity
+
+    pos = sim.pos; xpos = pos[:,0]; ypos = pos[:,1]; zpos = pos[:,2]
+    dpos= sim.pos  - sim1.pos  # subtract out other simulation
+    
+    if (sim.isE ==1):
+        dE = np.sqrt(np.sum(sim.posE*sim.posE)) # Earth!
+        Evec = sim.posE/dE * Evec_mag;
+    
+    # Quiver props
+    #Qscale = 5e-4; 
+    Qwidth=2; Qkeyx = -150; Qkeyy=200; 
+    #Qkey_len=0.03; 
+    Qkey_lab = '{:.1f}cm'.format(Qkey_len*100)
+    
+    ii = (np.abs(ypos)<width) # restrict to near y=0
+    x  = np.squeeze(pos[ii,0]) ; y  = np.squeeze(pos[ii,1]);   z = np.squeeze(pos[ii,2])
+    dx = np.squeeze(dpos[ii,0]); dy = np.squeeze(dpos[ii,1]); dz = np.squeeze(dpos[ii,2])
+    Q = axarr[0].quiver(x,z,dx,dz,units='x',scale=Qscale,pivot='mid',width=Qwidth)
+    qk = axarr[0].quiverkey(Q, Qkeyx, Qkeyy, Qkey_len, '', labelpos='S',\
+                   coordinates='data')
+    axarr[0].text(Qkeyx,Qkeyy-20,Qkey_lab,fontsize=8,ha='center',va='center')
+    
+    ii = (np.abs(xpos)<width) # restrict to near x=0
+    x  = np.squeeze(pos[ii,0]) ; y  = np.squeeze(pos[ii,1]);   z = np.squeeze(pos[ii,2])
+    dx = np.squeeze(dpos[ii,0]); dy = np.squeeze(dpos[ii,1]); dz = np.squeeze(dpos[ii,2])
+    Q= axarr[1].quiver(y,z,dy,dz,units='x',scale=Qscale,pivot='mid',width=Qwidth)
+    
+    ii = (np.abs(zpos)<width) # restrict to near z=0
+    x  = np.squeeze(pos[ii,0]) ; y  = np.squeeze(pos[ii,1]);   z = np.squeeze(pos[ii,2])
+    dx = np.squeeze(dpos[ii,0]); dy = np.squeeze(dpos[ii,1]); dz = np.squeeze(dpos[ii,2])
+    axarr[2].quiver(y,x,dy,dx,units='x',scale=Qscale,pivot='mid',width=Qwidth)
+
+    if (sim.isE ==1):
+        axarr[0].plot([0,Evec[0]],[0,Evec[2]],'c-',lw=1) # Earth
+        axarr[1].plot([0,Evec[1]],[0,Evec[2]],'c-',lw=1) # Earth
+        axarr[2].plot([0,Evec[1]],[0,Evec[0]],'c-',lw=1) # Earth
+    
+    x0=-40; y0=-190.0; x1 = x0+200.0;
+    axarr[0].plot([x0,x1],[y0,y0],'k-',lw=2)  # put a 200 m bar on the plot
+    axarr[0].text((x0+x1)/2,y0,'200 m',ha='center',va='bottom',fontsize=8)
+    axarr[0].set_ylabel('z')
+    axarr[0].set_xlabel('x')
+    axarr[1].set_xlabel('y')
+    axarr[2].set_xlabel('y')
+    axarr[2].text(fig_lim,0,'x',rotation='vertical')
+    
+    tlabel_full = r'$t-t_{peri}$=' + tlabel + ' hour'
+    axarr[0].text(0,230,tlabel_full,ha='center',va='center')
+
+    if (len(ofile)>3):
+        plt.savefig(ofile,dpi=300)
+
 
