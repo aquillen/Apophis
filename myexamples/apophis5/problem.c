@@ -184,6 +184,7 @@ int main(int argc, char* argv[]){
 
    if (seed != 1)  // seed random number generator
       srand(seed); // specify if not 1
+      r->rand_seed = seed;
    int il,ih;
 
    // if we are reading in a previously made set of particles
