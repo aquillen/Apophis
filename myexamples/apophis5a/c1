@@ -1,0 +1,30 @@
+10        dt         # timestep in seconds
+72000     tmax       # integrate to this time in seconds
+500       t_print    # output orbit info on this time
+3600      t_datadump # output particles and springs on this time
+0         stype      # if 0 create particle shape, if 1 read in saved resolved body
+c1        saveroot   # root for saved particles and springs file, if stype=1
+0         sindex     # index for save particles and springs file
+4.0e10    mball      # Mass of Apophis in kg 
+../shape/apophis_v233s7_vert2_new.obj  # shape model 
+1e3       distcor    # what to multiply shape model to put it in m
+1.98e+07  shape_vol  # shape volume in m3  computed in python using face tetrahedrons 
+15.0      b_distance # min interparticle distance in m
+2.3       mush_fac   # sets max spring length
+2.0e3     ks         # spring constant mks
+1.0       gamma_fac  # how much higher is gamma initially? 
+0.1e-1    gamma_all  # spring damping final
+0.0       t_damp     # time to switch damping
+0.000     omegax     # initial body spin  B18 values in rad/s
+0.0       omegay     # initial body spin
+5.3522e-5 omegaz     # initial body spin
+0.0       lambda_L   # Ecliptic longitude (deg) of angular momentum vector
+90.0      beta_L     # Ecliptic lattitude (deg), makes initial L be +z direction
+2         seed       # if 1 then use time of day otherwise use to seed random number generator
+0         neph       # is there an ephemeris point mass? if not set to 0
+../orbit/horizons_results_AGeo6.csv    # ephemerus file for Earth not used!
+5.9722E24     ME     # mass of Earth kg 
+6378.1370e3   RE     # equatorial radius of Earth in m
+2462240.281944444 jd0  # time is zero at this julian date in days
+60        dt_eph     # time between ephemerus points in s
+-1e3      scalefac   # to convert eph to m  and sign so that w.r.t to Earth
